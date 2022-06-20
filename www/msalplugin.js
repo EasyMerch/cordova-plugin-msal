@@ -60,7 +60,9 @@ module.exports = {
         }
         cordova.exec(successCallback, errorCallback, 'MsalPlugin', 'msalInit', [JSON.stringify(options)]);
     },
-    startLogger: function(updateCallback, errorCallback, containsPII = false, logLevel = 'VERBOSE') {
+    startLogger: function(updateCallback, errorCallback) {
+		if(containsPII === undefined) containsPII = false;
+		if(logLevel === undefined) logLevel = 'VERBOSE';
         cordova.exec(updateCallback, errorCallback, 'MsalPlugin', 'startLogger', [containsPII, logLevel]);
     },
     getAccounts: function(successCallback, errorCallback) {
