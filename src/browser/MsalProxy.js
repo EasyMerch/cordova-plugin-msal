@@ -1,5 +1,3 @@
-const clientID = CLIENT_ID;
-const tenantId = TENANT_ID;
 const msal = window.msal;
 
 let msalApp = null;
@@ -10,14 +8,13 @@ const msalConfig = {
     }
 };
 const loginRequest = {};
-const msalAccounts = [];
 let accountMode = 'SINGLE';
 
 function msalInit(success, error, opts) {
     try {
         const providedConfig = JSON.parse(opts[0]);
-        msalConfig.auth.clientId = clientID;
-        msalConfig.auth.authority = `https://login.microsoftonline.com/${tenantId}`;
+        msalConfig.auth.clientId = providedConfig.clientId;
+        msalConfig.auth.authority = `https://login.microsoftonline.com/${providedConfig.tenantId}`;
         msalConfig.auth.knownAuthorities = providedConfig.authorities.filter(a => a.authorityUrl !== '').map(a => a.authorityUrl);
         accountMode = providedConfig.accountMode;
         loginRequest.scopes = providedConfig.scopes;
@@ -165,7 +162,7 @@ function startLogger(success, error, opts) {
                 logLevel = 3;
         }
         msalApp.setLogger(new msal.Logger({
-            LogLevel: logLevel,
+            logLevel: logLevel,
             piiLoggingEnabled: opts[0],
             loggerCallback: function(level, message, containsPii) {
                 success({
@@ -175,7 +172,7 @@ function startLogger(success, error, opts) {
                     logLevel: level,
                     containsPII: containsPii,
                     message: message
-                });
+                },{keepCallback:true});
             }
         }));
     } catch (ex) {

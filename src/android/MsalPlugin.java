@@ -12,7 +12,6 @@ import org.json.JSONObject;
 
 import android.app.Activity;
 import android.content.Context;
-import android.util.Pair;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -22,6 +21,7 @@ import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -68,15 +68,9 @@ public class MsalPlugin extends CordovaPlugin {
     @Override
     public void initialize(CordovaInterface cordova, CordovaWebView webView) {
         super.initialize(cordova, webView);
-
         activity = cordova.getActivity();
         context = webView.getContext();
-
-        clientId = this.preferences.getString("clientId","");
-        tenantId = this.preferences.getString("tenantId","common");
         keyHash = this.preferences.getString("keyHash","");
-
-
     }
 
     @Override
@@ -139,15 +133,16 @@ public class MsalPlugin extends CordovaPlugin {
                             prompt = Prompt.WHEN_REQUIRED;
                     }
                 }
-                List<Pair<String, String>> authorizationQueryStringParameters = new ArrayList<Pair<String, String>>();
+                List<Map.Entry<String, String>> authorizationQueryStringParameters = new ArrayList<>();
+                Map<String, String> params = new HashMap<>();
                 if (args.length() > 2) {
                     JSONArray queryParams = args.getJSONArray(2);
                     for (int i = 0; i < queryParams.length(); ++i) {
                         JSONObject queryParam = queryParams.getJSONObject(i);
-                        authorizationQueryStringParameters.add(new Pair<String, String>(
-                                queryParam.getString("param"),
-                                queryParam.getString("value")
-                        ));
+                        params.put(queryParam.getString("param"), queryParam.getString("value"));
+                    }
+                    for (Map.Entry<String, String> param: params.entrySet()) {
+                        authorizationQueryStringParameters.add(param);
                     }
                 }
                 ArrayList<String> scopes = new ArrayList<String>();
@@ -183,6 +178,12 @@ public class MsalPlugin extends CordovaPlugin {
                     StringBuilder authorities = new StringBuilder("    \"authorities\": [\n");
                     String data;
                     try {
+                        if (!"".equals(options.optString("tenantId"))) {
+                            MsalPlugin.this.tenantId = options.getString("tenantId");
+                        }
+                        if (!"".equals(options.optString("clientId"))) {
+                            MsalPlugin.this.clientId = options.getString("clientId");
+                        }
                         JSONArray authoritiesList = options.getJSONArray("authorities");
                         for (int i = 0; i < authoritiesList.length(); ++i) {
                             JSONObject authority = authoritiesList.getJSONObject(i);
@@ -206,6 +207,9 @@ public class MsalPlugin extends CordovaPlugin {
                         }
                         authorities.append("    ]\n");
                         data = "{\n" +
+                                "    \"power_opt_check_for_network_req_enabled\": " + options.optBoolean("powerOptCheckForNetworkReqEnabled", true) + ",\n" +
+                                "    \"web_view_zoom_controls_enabled\": " + options.optBoolean("webViewZoomControlsEnabled", true) + ",\n" +
+                                "    \"web_view_zoom_enabled\" : " + options.optBoolean("webViewZoomEnabled", true) + ",\n" +
                                 "    \"client_id\" : \"" + MsalPlugin.this.clientId + "\",\n" +
                                 "    \"account_mode\": \"" + options.getString("accountMode") + "\",\n" +
                                 "    \"authorization_user_agent\" : \"" + options.getString("authorizationUserAgent") + "\",\n" +
@@ -364,7 +368,7 @@ public class MsalPlugin extends CordovaPlugin {
         }
     }
 
-    private void signinUserInteractive(final String loginHint, final List<Pair<String, String>> authorizationQueryStringParameters, final Prompt prompt, final String[] otherScopesToAuthorize) {
+    private void signinUserInteractive(final String loginHint, final List<Map.Entry<String, String>> authorizationQueryStringParameters, final Prompt prompt, final String[] otherScopesToAuthorize) {
         if (this.checkConfigInit()) {
             if (this.SINGLE_ACCOUNT.equals(this.accountMode)) {
                 cordova.getThreadPool().execute(new Runnable() {
@@ -560,7 +564,15 @@ public class MsalPlugin extends CordovaPlugin {
             try {
                 JSONObject claimObj = new JSONObject();
                 claimObj.put("key", claim.getKey());
-                claimObj.put("value", claim.getValue());
+                if (claim.getValue() instanceof ArrayList) {
+                  JSONArray arr = new JSONArray();
+                  for (Object obj: (ArrayList)claim.getValue()) {
+                    arr.put(obj);
+                  }
+                  claimObj.put("value", arr);
+                } else {
+                  claimObj.put("value", claim.getValue());
+                }
                 claimsArr.put(claimObj);
             } catch (JSONException e) {
                 MsalPlugin.this.callbackContext.error(e.getMessage());
